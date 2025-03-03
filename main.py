@@ -25,13 +25,14 @@ This simulation compares three financial strategies over a multi‐year period:
 """
 
 # === Imports ===
+import numpy as np
 import datetime
 from dataclasses import dataclass
 from typing import List
 import humanize  # For human-friendly number formatting
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from functions import simulate_investment, simulate_buying_scenario
+from functions import simulate_investment, simulate_buying_scenario, plot_investment
 from forecasting import simulate_gbm, plot_forecast
 
 # === Global Constants / Input Parameters ===
@@ -182,8 +183,7 @@ class InvestmentScenario(Scenario):
         print("=== Direct Investment Scenario Results ===")
         print(f"Monthly Investment (Full Income): {humanize.intcomma(profile.monthly_income)} ILS")
         # Compute average final balance from the Monte Carlo paths
-        final_balances = [path[-1] for path in self.results['paths']]
-        avg_final_balance = sum(final_balances) / len(final_balances)
+        avg_final_balance = np.percentile(self.results[-1, :], 50)
         print(f"Average Final Investment Value (Untaxed): {humanize.intcomma(round(avg_final_balance))} ILS")
         print("=" * 40)
 
@@ -200,7 +200,7 @@ class InvestmentScenario(Scenario):
             initial_already_invested=FURTUNE_INVESTED,
             n_sim=N_SIM
         )
-        # self.print_results(profile)
+        self.print_results(profile)
         return {
             'final_investment_paths': self.results
         }
@@ -277,7 +277,7 @@ class SimulationEngine:
         # Direct Investment Scenario traces
         if all_results.get("Direct Investment"):
             investment_data = all_results["Direct Investment"]['final_investment_paths']
-            forecast_traces = plot_forecast(investment_data, self.years, bins=1000, return_traces=True)
+            forecast_traces = plot_investment(investment_data, self.years, bins=1000, return_traces=True)
             for trace in forecast_traces:
                 fig.add_trace(trace, row=3, col=1)
             y_upper = max(max(trace['y']) for trace in forecast_traces if trace.__class__.__name__ == 'Scatter')*1.1

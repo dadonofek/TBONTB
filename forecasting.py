@@ -68,7 +68,10 @@ def plot_forecast(paths, years, res=12, bins=1000, return_traces=False):
     bin_edges = np.linspace(S_min, S_max, bins + 1)
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
     formatted_bin_centers = [humanize.intcomma(int(val)) for val in bin_centers]
-    customdata = np.tile(formatted_bin_centers, (len(t) - 1, 1)).T
+    custom_heatmap = np.tile(formatted_bin_centers, (len(t) - 1, 1)).T
+    custom_q10 = [humanize.intcomma(int(val)) for val in q10]
+    custom_q90 = [humanize.intcomma(int(val)) for val in q90]
+    custom_mean = [humanize.intcomma(int(val)) for val in mean_line]
 
     # Create a percentage density matrix for time intervals (one fewer than len(t))
     density = np.zeros((bins, len(t) - 1))
@@ -82,7 +85,7 @@ def plot_forecast(paths, years, res=12, bins=1000, return_traces=False):
         x=t[:-1],
         y=bin_centers,
         z=density,
-        customdata=customdata,
+        customdata=custom_heatmap,
         colorscale='Hot',
         colorbar=dict(title='Percentage (%)'),
         hovertemplate="Time: %{x:.2f} years<br>Index Value: %{customdata}<br>Percentage: %{z:.2f}%<extra></extra>"
@@ -95,7 +98,8 @@ def plot_forecast(paths, years, res=12, bins=1000, return_traces=False):
         mode='lines',
         name='Pessimistic Scenario',
         line=dict(color='red', width=2),
-        hovertemplate="Time: %{x:.2f} years<br>10th Percentile: %{y:.2f}<extra></extra>"
+        customdata=custom_q10,
+        hovertemplate="Time: %{x:.2f} years<br>10th Percentile: %{customdata}<extra></extra>"
     )
 
     trace_q90 = go.Scatter(
@@ -104,7 +108,8 @@ def plot_forecast(paths, years, res=12, bins=1000, return_traces=False):
         mode='lines',
         name='Optimistic Scenario',
         line=dict(color='green', width=2),
-        hovertemplate="Time: %{x:.2f} years<br>90th Percentile: %{y:.2f}<extra></extra>"
+        customdata=custom_q90,
+        hovertemplate="Time: %{x:.2f} years<br>90th Percentile: %{customdata}<extra></extra>"
     )
 
     trace_mean = go.Scatter(
@@ -113,7 +118,8 @@ def plot_forecast(paths, years, res=12, bins=1000, return_traces=False):
         mode='lines',
         name='Most Likely Scenario',
         line=dict(color='blue', width=2, dash='dash'),
-        hovertemplate="Time: %{x:.2f} years<br>Mean: %{y:.2f}<extra></extra>"
+        customdata=custom_mean,
+        hovertemplate="Time: %{x:.2f} years<br>Mean: %{customdata}<extra></extra>"
     )
 
     # Calculate upper bound for y-axis (90th percentile max + 10%)
