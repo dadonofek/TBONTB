@@ -3,6 +3,7 @@ import plotly.graph_objects as go
 import humanize
 
 '''
+important: this file is not directly used be the main file. it is for tests and trials in the forecasting field.
 Geometric Brownian Motion (GBM) is a model that simulates how stock prices evolve over time
 by assuming that the continuously compounded (log) returns are normally distributed.
 This means that the future price is determined by a constant average growth rate (drift)
