@@ -32,7 +32,10 @@ def generate_interest_schedule(initial_rate, mu, theta, sigma, years):
         schedule.append(year_rates)
     return schedule
 
-def simulate_investment(initial_fortune, monthly_contribution, years, tax_rate,
+def simulate_investment(initial_fortune,
+                        monthly_contribution,
+                        years,
+                        tax_rate,
                         transaction_fee=0,
                         percentace_management_fee=0,
                         ILS_management_fee=0,
