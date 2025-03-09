@@ -59,6 +59,7 @@ TRANSACTION_FEES = 0.07 # in % per transaction
 PR_MANEGEMENT_FEE = 0.1 # in % per year
 ILS_MANEGEMENT_FEE = 15 # in % per month
 FURTUNE_INVESTED = True
+STOCKS_FORECAST_PARAMS = {'mu':0.078, 'sigma':0.15}
 
 # Simulation settings
 SIMULATION_START_DATE = datetime.date.today()
@@ -66,9 +67,10 @@ SIMULATION_YEARS = 30  # Duration of simulation in years
 STOCKS_TAX_RATE = 25  # Tax rate on investment gains (in percent)
 
 # Additional parameters for property simulation
-YEARLY_VALUE_INCREASE_RATE = 4.3  # Annual property appreciation (in percent)
+# YEARLY_VALUE_INCREASE_RATE = 4.3  # Annual property appreciation (in percent)
 MAINTENANCE_COST_RATE = 0.0  # Maintenance cost rate (% of property value)
 FIXED_MAINTENANCE_COST = 10000  # Fixed annual maintenance cost in ILS
+APT_FORECAST_PARAMS = {'mu':0.054, 'sigma':0.052}
 
 
 # === Classes ===
@@ -124,7 +126,7 @@ class BuyingScenario(Scenario):
             years=SIMULATION_YEARS,
             maintenance_cost_rate=MAINTENANCE_COST_RATE,
             fixed_maintenance_cost=FIXED_MAINTENANCE_COST,
-            yearly_value_increase_rate=YEARLY_VALUE_INCREASE_RATE
+            yearly_value_increase_rate=STOCKS_FORECAST_PARAMS
         )
         self.print_results()
         # Return all detailed data for plotting
@@ -138,40 +140,40 @@ class BuyingScenario(Scenario):
 
 
 @dataclass
-class RentingScenario(Scenario):
-    """Simulation scenario for renting and investing the surplus."""
-    monthly_rent: float
-    expected_investment_return: float  # in percent
-
-    def print_results(self):
-        print("=== Renting Scenario Results ===")
-        print(f"Monthly Rent: {humanize.intcomma(self.monthly_rent)} ILS")
-        print(f"Monthly Surplus Invested: {humanize.intcomma(self.monthly_surplus)} ILS")
-        # Compute average final balance from the Monte Carlo paths
-        final_balances = [path[-1] for path in self.results['paths']]
-        avg_final_balance = sum(final_balances) / len(final_balances)
-        print(f"Average Final Investment Value (Untaxed): {humanize.intcomma(round(avg_final_balance))} ILS")
-        print("=" * 40)
-
-    def simulate(self, profile: FinancialProfile):
-        print(f"\nSimulating {self.name} (Renting):")
-        self.monthly_surplus = profile.monthly_income - self.monthly_rent
-        if self.monthly_surplus < 0:
-            print("Warning: Monthly rent exceeds monthly income. No surplus available for investment.")
-            self.monthly_surplus = 0
-        self.results = simulate_investment(
-            initial_fortune=profile.savings,
-            monthly_contribution=self.monthly_surplus,
-            years=SIMULATION_YEARS,
-            tax_rate=STOCKS_TAX_RATE,
-            n_sim=N_SIM
-        )
-        cumulative_rent = [self.monthly_rent * 12 * i for i in range(1, SIMULATION_YEARS + 1)]
-        self.print_results()
-        return {
-            'final_investment_paths': self.results['paths'],
-            'cumulative_rent': cumulative_rent
-        }
+# class RentingScenario(Scenario):
+#     """Simulation scenario for renting and investing the surplus."""
+#     monthly_rent: float
+#     expected_investment_return: float  # in percent
+#
+#     def print_results(self):
+#         print("=== Renting Scenario Results ===")
+#         print(f"Monthly Rent: {humanize.intcomma(self.monthly_rent)} ILS")
+#         print(f"Monthly Surplus Invested: {humanize.intcomma(self.monthly_surplus)} ILS")
+#         # Compute average final balance from the Monte Carlo paths
+#         final_balances = [path[-1] for path in self.results['paths']]
+#         avg_final_balance = sum(final_balances) / len(final_balances)
+#         print(f"Average Final Investment Value (Untaxed): {humanize.intcomma(round(avg_final_balance))} ILS")
+#         print("=" * 40)
+#
+#     def simulate(self, profile: FinancialProfile):
+#         print(f"\nSimulating {self.name} (Renting):")
+#         self.monthly_surplus = profile.monthly_income - self.monthly_rent
+#         if self.monthly_surplus < 0:
+#             print("Warning: Monthly rent exceeds monthly income. No surplus available for investment.")
+#             self.monthly_surplus = 0
+#         self.results = simulate_investment(
+#             initial_fortune=profile.savings,
+#             monthly_contribution=self.monthly_surplus,
+#             years=SIMULATION_YEARS,
+#             tax_rate=STOCKS_TAX_RATE,
+#             n_sim=N_SIM
+#         )
+#         cumulative_rent = [self.monthly_rent * 12 * i for i in range(1, SIMULATION_YEARS + 1)]
+#         self.print_results()
+#         return {
+#             'final_investment_paths': self.results['paths'],
+#             'cumulative_rent': cumulative_rent
+#         }
 
 
 @dataclass
@@ -183,27 +185,29 @@ class InvestmentScenario(Scenario):
         print("=== Direct Investment Scenario Results ===")
         print(f"Monthly Investment (Full Income): {humanize.intcomma(profile.monthly_income)} ILS")
         # Compute average final balance from the Monte Carlo paths
-        avg_final_balance = np.percentile(self.results[-1, :], 50)
-        print(f"Average Final Investment Value (Untaxed): {humanize.intcomma(round(avg_final_balance))} ILS")
+        avg_final_balance_untaxed = np.percentile(self.results['final_investment_paths_untaxed'][-1, :], 50)
+        print(f"Average Final Investment Value (Untaxed): {humanize.intcomma(round(avg_final_balance_untaxed))} ILS")
+        avg_final_balance_taxed = np.percentile(self.results['final_investment_paths_taxed'][-1, :], 50)
+        print(f"Average Final Investment Value (taxed): {humanize.intcomma(round(avg_final_balance_taxed))} ILS")
         print("=" * 40)
 
-    def simulate(self, profile: FinancialProfile):
+    def simulate(self, profile: FinancialProfile):  # TODO: more complex contributions_schedule- maybe cpi related
         print(f"\nSimulating {self.name} (Direct Investment):")
+        contributions_schedule = [[profile.monthly_income] * 12 for _ in range(SIMULATION_YEARS)]
         self.results = simulate_investment(
             initial_fortune=profile.savings,
-            monthly_contribution=profile.monthly_income,
             years=SIMULATION_YEARS,
             tax_rate=STOCKS_TAX_RATE,
             transaction_fee=TRANSACTION_FEES,
             percentace_management_fee=PR_MANEGEMENT_FEE,
             ILS_management_fee=ILS_MANEGEMENT_FEE,
             initial_already_invested=FURTUNE_INVESTED,
+            contributions_schedule=contributions_schedule,
+            forecast_params=STOCKS_FORECAST_PARAMS,
             n_sim=N_SIM
         )
         self.print_results(profile)
-        return {
-            'final_investment_paths': self.results
-        }
+        return self.results
 
 
 @dataclass
@@ -276,8 +280,8 @@ class SimulationEngine:
 
         # Direct Investment Scenario traces
         if all_results.get("Direct Investment"):
-            investment_data = all_results["Direct Investment"]['final_investment_paths']
-            forecast_traces = plot_investment(investment_data, self.years, bins=1000, return_traces=True)
+            investment_data_untaxed = all_results["Direct Investment"]['final_investment_paths_untaxed']  # taxed is not plotted
+            forecast_traces = plot_investment(investment_data_untaxed, self.years, bins=1000, return_traces=True)
             for trace in forecast_traces:
                 fig.add_trace(trace, row=3, col=1)
             y_upper = max(max(trace['y']) for trace in forecast_traces if trace.__class__.__name__ == 'Scatter')*1.1
@@ -297,13 +301,13 @@ def main():
     )
 
     # Initialize scenarios
-    buying = BuyingScenario(
-        name="Buying Apartment",
-        apartment_price=APARTMENT_PRICE,
-        down_payment=DOWN_PAYMENT,
-        mortgage_rate=MORTGAGE_RATE,
-        mortgage_term=MORTGAGE_TERM
-    )
+    # buying = BuyingScenario(
+    #     name="Buying Apartment",
+    #     apartment_price=APARTMENT_PRICE,
+    #     down_payment=DOWN_PAYMENT,
+    #     mortgage_rate=MORTGAGE_RATE,
+    #     mortgage_term=MORTGAGE_TERM
+    # )
 
     # renting = RentingScenario(
     #     name="Renting and Investing",
@@ -319,7 +323,7 @@ def main():
     # Create and run the simulation engine with all scenarios
     engine = SimulationEngine(
         profile=profile,
-        scenarios=[buying, investment],
+        scenarios=[investment],
         start_date=SIMULATION_START_DATE,
         years=SIMULATION_YEARS
     )

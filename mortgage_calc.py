@@ -152,7 +152,7 @@ class AdjustableUnlinked(BaseMortgage):
             adjustment_offset = period - (self.fixed_period * 12)
             block = (adjustment_offset - 1) // (self.fixed_period * 12)
             if block < len(self.reference_index):
-                return self.reference_index[block]  # TODO: this is incorrect. how does the interest realy changes?
+                return self.reference_index[block]
             else:
                 return self.reference_index[-1]
 
@@ -174,7 +174,7 @@ class Adjustablelinked(BaseMortgage):
             adjustment_offset = period - (self.fixed_period * 12)
             block = (adjustment_offset - 1) // (self.fixed_period * 12)
             if block < len(self.reference_index):
-                return self.reference_index[block]  # TODO: this is incorrect. how does the interest realy changes?
+                return self.reference_index[block]
             else:
                 return self.reference_index[-1]
 

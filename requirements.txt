@@ -1,3 +1,7 @@
 numpy>=1.21.0
 plotly>=5.0.0
 humanize>=3.6.0
+openpyxl>=3.0.0
+matplotlib>=3.0.0
+yfinance>=0.1.70
+pandas>=1.0.0

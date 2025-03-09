@@ -1,39 +1,9 @@
 import numpy as np
 import plotly.graph_objects as go
 import humanize
-
-def generate_interest_schedule(initial_rate, mu, theta, sigma, years):
-# thoughts: evaluate real world params and use.
-    """
-    Generates a 2D interest schedule (annual rates in percent) using the Ornstein–Uhlenbeck process.
-
-    Parameters:
-        initial_rate: Initial annual interest rate (in percent).
-        mu: Long-run mean annual interest rate (in percent).
-        theta: Speed of mean reversion.
-        sigma: Volatility (in percent).
-        years: Number of years to simulate.
-
-    Returns:
-        A 2D list of simulated monthly interest rates (in percent) with dimensions [years][12].
-    """
-    dt = 1 / 12  # time step for one month
-    schedule = []
-    rate = initial_rate
-    for _ in range(years):
-        year_rates = []
-        for _ in range(12):
-            # Increment from the Ornstein–Uhlenbeck process:
-            dW = np.random.normal(0, np.sqrt(dt))
-            rate = rate + theta * (mu - rate) * dt + sigma * dW
-            # Optionally, ensure the rate doesn't go negative:
-            rate = max(rate, 0)
-            year_rates.append(rate)
-        schedule.append(year_rates)
-    return schedule
+from forecasting import simulate_gbm
 
 def simulate_investment(initial_fortune,
-                        monthly_contribution,
                         years,
                         tax_rate,
                         transaction_fee=0,
@@ -41,102 +11,99 @@ def simulate_investment(initial_fortune,
                         ILS_management_fee=0,
                         initial_already_invested=True,
                         contributions_schedule=None,
-                        forecast_params={'mu':0.07, 'sigma':0.15, 'dt':1/12},
+                        forecast_params={'mu':0.07, 'sigma':0.15},
                         n_sim=100):
     """
-    Simulates the growth of an investment over a number of years with variable contributions,
-    fees, and taxes.
+    Simulates the evolution of an investment account over a specified number of years,
+    incorporating monthly contributions, transaction fees, management fees, interest accrual,
+    and taxation on profits.
+
+    The function works as follows:
+      1. It generates a full GBM forecast (with S0=1) for the simulation period using simulate_gbm.
+      2. Monthly interest multipliers are computed from the GBM path by taking the ratio
+         of consecutive time steps. The resulting multipliers are reshaped into a 2D array
+         with dimensions [years][12], so that each month’s multiplier is accessible as:
+             monthly_interest[year_idx][month_idx]
+      3. The simulation loop then updates the account balance each month:
+           a. A monthly contribution (with transaction fee applied) is added.
+           b. Management fees are deducted—both as a monthly percentage fee (converted from an annual rate)
+              and as a fixed ILS fee.
+           c. The monthly interest multiplier is applied.
+           d. A taxed balance is computed by reducing the profit (current balance minus total deposits)
+              by the specified tax_rate.
+      4. Throughout the simulation, both the untaxed and taxed monthly balances are stored.
 
     Parameters:
-        initial_fortune: Starting amount.
-        monthly_contribution: Default monthly contribution (used if contributions_schedule is not provided).
-        yearly_interest: Annual interest rate (in percent).
-        years: Total simulation period in years.
-        tax_rate: Tax rate on gains (in percent).
-        deposit_at_beginning: Flag indicating whether deposits occur at the beginning of each month.
-        transaction_fee: Tuple (fee_value, fee_type) where fee_type is 'ILS' (fixed per year) or 'percentage'
-                         (applied on fee-applicable funds).
-        management_fee: Tuple (fee_value, fee_type) for management fees; fee_type is either 'percentage'
-                        (of balance per month) or 'ILS' (fixed per month).
-        initial_already_invested: If True, the initial_fortune is exempt from transaction fees.
-        contributions_schedule: Optional 2D array (list of lists) with dimensions [years][12] specifying the
-                                contribution amount for each month. If not provided, each month will use monthly_contribution.
+        initial_fortune (float): The starting amount in the investment account.
+        years (int): The total simulation period (in years).
+        tax_rate (float): Tax rate (in percent) to be applied on the profit (i.e., current balance minus total deposits).
+        transaction_fee (float): Percentage fee applied to each deposit (default 0).
+        percentace_management_fee (float): Annual management fee (in percent), applied monthly (default 0).
+        ILS_management_fee (float): Fixed monthly management fee in ILS (default 0).
+        initial_already_invested (bool): If True, the initial_fortune is assumed fully invested (thus exempt from transaction fees).
+        contributions_schedule (list of lists, optional): A 2D list with dimensions [years][12] specifying the contribution amount for each month.
+        forecast_params (dict): Parameters for the GBM forecast; must include 'mu' (annual drift) and 'sigma' (annual volatility).
+        n_sim (int): Number of simulation paths.
 
     Returns:
-        A dictionary containing:
-          - 'final_balance': Balance before tax and transaction fees.
-          - 'final_balance_taxed': Final balance after applying tax on gains and deducting transaction fees.
-          - 'total_deposits': Total amount deposited over the period.
-          - 'yearly_balances': List of balances at the end of each year.
-          - 'yearly_deposits': List of cumulative deposits at each year-end.
-          - 'yearly_earnings': List of earnings (balance minus deposits) at each year-end.
+        tuple: A tuple (paths, taxed) where:
+            - paths is a NumPy array of untaxed account balances at each month (shape: (months+1, n_sim)).
+            - taxed is a NumPy array of taxed account balances at each month, where tax is applied to the profit.
+
+    Notes:
+        - The function first computes market_paths using simulate_gbm. From these, it derives monthly interest multipliers as:
+              monthly_interest = (market_paths[1:] / market_paths[:-1]).reshape(years, 12, -1)
+          so that for each month the multiplier is available as monthly_interest[year_idx][month_idx].
+        - For each month, the balance is updated by first adding the contribution (adjusted by transaction fees),
+          applying management fees, and then applying the corresponding interest multiplier.
+        - The taxed balance is calculated for each month as:
+              taxed_balance = balances - (balances - total_deposits) * (tax_rate / 100)
+          which applies tax on the gains (the difference between the current balance and the total deposits so far).
     """
-    # If no contributions_schedule is provided, create one using monthly_contribution for every month.
-    if contributions_schedule is None:
-        contributions_schedule = [[monthly_contribution] * 12 for _ in range(years)]
 
-    def apply_management_fee(balance, percentace_management_fee, ILS_management_fee):
-            monthly_rate = percentace_management_fee / 100 / 12
-            balance * (1 - monthly_rate)
-            return balance - ILS_management_fee
+    market_paths = simulate_gbm(S0=1,
+                                mu=forecast_params['mu'],
+                                sigma=forecast_params['sigma'],
+                                T=years,
+                                dt=1/12,
+                                n_simulations=n_sim)
 
-    def apply_interest(balance, forecast_params):
-        '''
-        see simulate_gbm on forecasting for an explanation of the interest calculation
-        '''
-        mu = forecast_params['mu']
-        sigma = forecast_params['sigma']
-        dt = forecast_params['dt']
-        z = np.random.standard_normal()  # random draws ~ N(0,1)
-        return balance * np.exp((mu - 0.5 * sigma ** 2) * dt + sigma * np.sqrt(dt) * z)
-
-    def update_monthly_balance(balance, total_deposits, current_contribution, forecast_params):
-        balance += current_contribution * (1 - transaction_fee/100)
-        balance = apply_management_fee(balance, percentace_management_fee, ILS_management_fee)
-        balance = apply_interest(balance, forecast_params)
-
-        total_deposits += current_contribution
-        return balance, total_deposits
+    monthly_interest = (market_paths[1:] / market_paths[:-1]).reshape(years, 12, -1)
 
     # Initial setup
     months = years * 12
-    paths = []  # to store the full monthly balance series for each simulation
-
-    # Replace the for-loop over simulation paths with the following vectorized code:
-
     init_balance = initial_fortune if initial_already_invested else initial_fortune * (1 - transaction_fee / 100)
     balances = np.full(n_sim, init_balance)
     total_deposits = np.full(n_sim, initial_fortune)
     monthly_paths = [balances.copy()]
-
-    mu = forecast_params['mu']
-    sigma = forecast_params['sigma']
-    dt = forecast_params['dt']
+    taxed_paths = [balances.copy()]
 
     for m in range(1, months + 1):
         year_idx = (m - 1) // 12
         month_idx = (m - 1) % 12
         current_contribution = contributions_schedule[year_idx][month_idx]
+        balances += int(current_contribution * (1 - transaction_fee / 100))  # make deposit/ withdrawal
+        monthly_fee_rate = percentace_management_fee / 100 / 12
+        balances = (balances * (1 - monthly_fee_rate)) - ILS_management_fee  # pay management fees
+        balances = balances * monthly_interest[year_idx][month_idx]  # apply interest
 
-        # Update balances with contributions (transaction fee applied)
-        balances += int(current_contribution * (1 - transaction_fee / 100))
-
-        # Apply management fee vectorized
-        balances = apply_management_fee(balances, percentace_management_fee, ILS_management_fee)
-
-        # Vectorized interest application
-        z = np.random.standard_normal(n_sim)
-        balances = balances * np.exp((mu - 0.5 * sigma ** 2) * dt + sigma * np.sqrt(dt) * z)
+        taxed_balance = balances - (balances - total_deposits) * (tax_rate / 100)
+        taxed_paths.append(taxed_balance.copy())
 
         total_deposits += current_contribution
         monthly_paths.append(balances.copy())
 
     paths = np.array(monthly_paths)
-    return paths
+    taxed = np.array(taxed_paths)
+    return {
+            'final_investment_paths_untaxed': paths,
+            'final_investment_paths_taxed': taxed
+            }
 
 
 def simulate_buying_scenario(apartment_price, down_payment, mortgage_rate, mortgage_term, years,
                              maintenance_cost_rate, fixed_maintenance_cost, yearly_value_increase_rate):
+    # TODO: disgusting. implement similarly to the simulate_investment function. use mortgage_calc?
     mortgage_loan = apartment_price - down_payment
     n_payments = mortgage_term * 12
     monthly_rate = mortgage_rate / 12 / 100
