@@ -100,82 +100,93 @@ def simulate_investment(initial_fortune,
             'final_investment_paths_taxed': taxed
             }
 
+def simulate_property_value(apartment_price, years, forecast_params={'mu': 0.05, 'sigma': 0.05}, n_sim=100):
+    property_paths = simulate_gbm(S0=apartment_price,
+                                  mu=forecast_params['mu'],
+                                  sigma=forecast_params['sigma'],
+                                  T=years,
+                                  dt=1/12,
+                                  n_simulations=n_sim)
+    return property_paths
 
-def simulate_buying_scenario(apartment_price, down_payment, mortgage_rate, mortgage_term, years,
-                             maintenance_cost_rate, fixed_maintenance_cost, yearly_value_increase_rate):
-    # TODO: disgusting. implement similarly to the simulate_investment function. use mortgage_calc?
-    mortgage_loan = apartment_price - down_payment
-    n_payments = mortgage_term * 12
-    monthly_rate = mortgage_rate / 12 / 100
-    if monthly_rate > 0:
-        mortgage_payment = mortgage_loan * (monthly_rate * (1 + monthly_rate) ** n_payments) / (
-                    (1 + monthly_rate) ** n_payments - 1)
-    else:
-        mortgage_payment = mortgage_loan / n_payments
 
-    remaining_balance = mortgage_loan
-    total_mortgage_payments = 0
-    total_interest_paid = 0
-    total_maintenance_cost = 0
-    property_value = apartment_price
+def simulate_buying_scenario(property_value_paths,
+                             mortgage,
+                             years,
+                             maintenance_cost_rate,
+                             fixed_maintenance_cost):
+    """
+    Simulates the buying scenario similar to simulate_investment:
+      - Uses mortgage.calc_amortization_schedule() for monthly mortgage details.
+      - Uses simulate_gbm to simulate property appreciation.
+      - Calculates monthly maintenance cost (variable and fixed) and accumulates it.
+      - Returns summary values plus monthly paths.
+    """
     total_months = years * 12
-    yearly_net_equity = []  # record net equity each year
 
-    # Additional arrays for detailed data
-    yearly_mortgage_balance = []
-    yearly_principal_paid = []
-    yearly_interest_paid = []
-    yearly_property_value = []
-    yearly_maintenance_cost = []
+    # Obtain the mortgage amortization schedule (a list of dicts for each month)
+    amortization_schedule = mortgage.amortization_schedule
+    mortgage_term_months = len(amortization_schedule)
 
-    # Sums for the current year
-    year_principal = 0
-    year_interest = 0
+    # Initialize arrays for monthly mortgage data
+    monthly_mortgage_balance = np.zeros(total_months + 1)
+    monthly_interest_paid = np.zeros(total_months + 1)
+    monthly_principal_paid = np.zeros(total_months + 1)
 
-    for month in range(1, total_months + 1):
-        if month <= n_payments and remaining_balance > 0:
-            interest_payment = remaining_balance * monthly_rate
-            principal_payment = mortgage_payment - interest_payment
-            if principal_payment > remaining_balance:
-                principal_payment = remaining_balance
-                mortgage_payment = interest_payment + principal_payment
-            remaining_balance -= principal_payment
-            total_interest_paid += interest_payment
-            total_mortgage_payments += mortgage_payment
-            year_principal += principal_payment
-            year_interest += interest_payment
-        if month % 12 == 0:  # end of the year
-            annual_maintenance = property_value * (maintenance_cost_rate / 100) + fixed_maintenance_cost
-            total_maintenance_cost += annual_maintenance
-            property_value *= (1 + yearly_value_increase_rate / 100)
-            net_equity = property_value - remaining_balance - total_maintenance_cost
-            yearly_net_equity.append(net_equity)
-            yearly_mortgage_balance.append(remaining_balance)
-            yearly_principal_paid.append(year_principal)
-            yearly_interest_paid.append(year_interest)
-            yearly_property_value.append(property_value)
-            yearly_maintenance_cost.append(total_maintenance_cost)
-            # reset yearly sums
-            year_principal = 0
-            year_interest = 0
+    # At month 0, the mortgage balance is the full loan amount.
+    monthly_mortgage_balance[0] = mortgage.total_loan_value
+
+    # For each month, if within the mortgage term, read the values from the schedule.
+    for m in range(1, total_months + 1):
+        if m <= mortgage_term_months:
+            entry = amortization_schedule[m - 1]
+            # Convert humanized strings to numbers
+            monthly_mortgage_balance[m] = int(entry["remaining_balance"].replace(',', ''))
+            monthly_interest_paid[m] = int(entry.get("interest_payment", "0").replace(',', ''))
+            monthly_principal_paid[m] = int(entry.get("principal_payment", "0").replace(',', ''))
+        else:
+            # After the mortgage term, assume it's fully paid off.
+            monthly_mortgage_balance[m] = 0
+            monthly_interest_paid[m] = 0
+            monthly_principal_paid[m] = 0
+
+    n_paths = property_value_paths.shape[1]
+
+    # Calculate monthly maintenance cost for all simulation paths.
+    # Assume annual maintenance cost is: property_value * (maintenance_cost_rate/100) + fixed_maintenance_cost.
+    # We then prorate it monthly.
+    monthly_maintenance = np.zeros((total_months + 1, n_paths))
+    monthly_cumulative_maintenance = np.zeros((total_months + 1, n_paths))
+    for m in range(1, total_months + 1):
+        annual_maintenance = property_value_paths[m, :] * (maintenance_cost_rate / 100) + fixed_maintenance_cost
+        monthly_cost = annual_maintenance / 12
+        monthly_maintenance[m, :] = monthly_cost
+        monthly_cumulative_maintenance[m, :] = monthly_cumulative_maintenance[m - 1, :] + monthly_cost
+
+    # Compute monthly net equity for all simulation paths.
+    monthly_net_equity = property_value_paths - monthly_mortgage_balance[:, None] - monthly_cumulative_maintenance
+
+    # Compute summary values from the simulation for each path.
+    final_property_value = property_value_paths[-1, :]
+    remaining_mortgage = monthly_mortgage_balance[-1]  # Mortgage remains the same across simulations
+    total_maintenance_cost = monthly_cumulative_maintenance[-1, :]
+    net_equity = monthly_net_equity[-1, :]
 
     return {
-        'final_property_value': property_value,
-        'remaining_mortgage': remaining_balance,
-        'total_mortgage_payments': total_mortgage_payments,
-        'total_interest_paid': total_interest_paid,
+        'final_property_value': final_property_value,
+        'remaining_mortgage': remaining_mortgage,
         'total_maintenance_cost': total_maintenance_cost,
         'net_equity': net_equity,
-        'yearly_net_equity': yearly_net_equity,
-        'yearly_mortgage_balance': yearly_mortgage_balance,
-        'yearly_principal_paid': yearly_principal_paid,
-        'yearly_interest_paid': yearly_interest_paid,
-        'yearly_property_value': yearly_property_value,
-        'yearly_maintenance_cost': yearly_maintenance_cost
+        'monthly_principal_paid': monthly_principal_paid,
+        'monthly_interest_paid': monthly_interest_paid,
+        'monthly_mortgage_balance': monthly_mortgage_balance,
+        'monthly_maintenance': monthly_maintenance,
+        'monthly_cumulative_maintenance': monthly_cumulative_maintenance,
+        'monthly_net_equity': monthly_net_equity
     }
 
 
-def plot_investment(paths, years, res=12, bins=1000, return_traces=False):
+def plot_paths(paths, years, res=12, bins=1000, return_traces=False):
     """
     Plot an interactive heatmap of GBM simulated paths with Plotly, along with
     10th, 90th percentile lines, and the mean (median) path. The heatmap shows
@@ -265,7 +276,8 @@ def plot_investment(paths, years, res=12, bins=1000, return_traces=False):
         yaxis=dict(range=[0, y_upper]),
         legend=dict(x=0, y=1, xanchor='left', yanchor='top')
     )
-    fig.show()
 
     if return_traces:
         return [heatmap, trace_q10, trace_q90, trace_mean]
+    else:
+        fig.show()

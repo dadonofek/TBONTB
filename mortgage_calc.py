@@ -2,6 +2,7 @@
 this calculator assumes a "SHPITZER" return system: the monthly return is fixed under fixed conditions.
 '''
 
+import numpy as np
 import humanize
 from abc import ABC, abstractmethod
 
@@ -9,12 +10,13 @@ class BaseMortgage(ABC):
     """Base class for all mortgage types."""
     @abstractmethod
     def __init__(self, principal, term_years):
+        self.total_loan_value = principal
         self.principal = principal               # Principal amount in ILS
         self.term_years = term_years             # Loan term in years
         self.term_months = term_years * 12
         self.amortization_schedule = None
 
-    def calc_monthly_payment(self, interest_rate, principal, term_months):
+    def _calc_monthly_payment(self, interest_rate, principal, term_months):
         '''
         this method is the core logic of the calculator.
         it implements the annuity formula for a series of payments, a basic formula in finance.
@@ -38,6 +40,9 @@ class BaseMortgage(ABC):
         total_interest = sum(entry["interest"] for entry in self.amortization_schedule  if entry["period"] >= current_period)
         return total_interest
 
+    def get_payment_list(self):
+        return [int(period['total_payment'].replace(",", "")) for period in self.amortization_schedule]
+
     def calc_amortization_schedule(self):
         """
         Template method to calculate the full amortization schedule.
@@ -51,7 +56,7 @@ class BaseMortgage(ABC):
         for period in range(1, self.term_months + 1):
             remaining_term = self.term_months - period + 1
             period_interest_rate = self._get_period_interest_rate(period)  # child class specific
-            monthly_payment = self.calc_monthly_payment(period_interest_rate, current_balance, remaining_term)
+            monthly_payment = self._calc_monthly_payment(period_interest_rate, current_balance, remaining_term)
             # Compute interest and principal parts
             monthly_rate = period_interest_rate / 12 / 100
             interest_payment = current_balance * monthly_rate
@@ -200,7 +205,13 @@ class MultiTrackMortgage:
             multi = MultiTrackMortgage(fixed=fixed_mortgage, prime=prime_mortgage)
         """
         self.mortgage_tracks = mortgage_tracks
-        self.total_amortization_schedule = None
+        self.calc_total_loan_value()
+        self.calc_amortization_schedule()
+
+    def calc_total_loan_value(self):
+        self.total_loan_value = 0
+        for name, track in self.mortgage_tracks.items():
+            self.total_loan_value += track.total_loan_value
 
     def calc_individual_schedules(self):
         """
@@ -209,7 +220,7 @@ class MultiTrackMortgage:
         for name, track in self.mortgage_tracks.items():
             track.calc_amortization_schedule()
 
-    def calc_total_amortization_schedule(self):
+    def calc_amortization_schedule(self):
         """
         Aggregate the individual amortization schedules into one total schedule.
         For each period (as found in any track), sum numeric values for keys except 'period'
@@ -250,7 +261,7 @@ class MultiTrackMortgage:
                     entry[key] = humanize.intcomma(entry[key])
             total_schedule.append(entry)
 
-        self.total_amortization_schedule = total_schedule
+        self.amortization_schedule = total_schedule
         return total_schedule
 
     def get_track_schedule(self, track_name):
@@ -280,27 +291,78 @@ class MultiTrackMortgage:
             total_interest += track.get_total_interest_paid(current_period)
         return total_interest
 
+    def get_payment_list(self):
+        track_lists = [track.get_payment_list() for track in self.mortgage_tracks.values()]
+        return [sum(monthly) for monthly in zip(*track_lists)]
+
+
+
+def mortgage_factory(mortgage_params):
+    """Builds a MultiTrackMortgage from a dictionary of mortgage parameters.
+    Each key in mortgage_params is a track name and its value is a dict with parameters.
+    Expected keys in the parameter dict include:
+        - type: 'fixed', 'prime', 'linked', 'adjustable', or 'adjustablelinked'
+        - principal: loan principal
+        - term_years: loan term in years
+        - interest_rate: annual interest rate (in percent)
+    For 'prime' type, also include 'spread'.
+    """
+    MORTGAGE_TYPES = {
+        'fixed': FixedUnlinked,
+        'prime': PrimeUnlinked,
+        'linked': LinkedFixed,
+        'adjustable': AdjustableUnlinked,
+        'adjustablelinked': Adjustablelinked
+    }
+
+    mortgage_tracks = {}
+    for name, params in mortgage_params.items():
+        m_type = params.get("type", "").lower()
+        mortgage_class = MORTGAGE_TYPES.get(m_type)
+        if not mortgage_class:
+            print(f"Unknown mortgage type for {name}.")
+            continue
+
+        # Remove 'type' from parameters
+        init_params = {k: v for k, v in params.items() if k != "type"}
+
+        # Handle special case for 'prime' to generate prime_rate_list if needed
+        if m_type == "prime":
+            term = init_params["term_years"]
+            interest = init_params["interest_rate"]
+            init_params["prime_rate_list"] = [interest] * (term * 12)
+            del init_params["interest_rate"]
+
+        try:
+            track = mortgage_class(**init_params)
+        except Exception as e:
+            print(f"Error creating mortgage track {name}: {e}")
+            continue
+
+        mortgage_tracks[name] = track
+    return MultiTrackMortgage(**mortgage_tracks)
 
 if __name__ == "__main__":
-    principal = 1000000
-    term_years = 30
+    # Simple test for mortgage_factory
+    mortgage_params = {
+        "fixed_mortgage": {
+            "type": "fixed",
+            "principal": 800000,
+            "term_years": 30,
+            "interest_rate": 4.0
+        },
+        "prime_mortgage": {
+            "type": "prime",
+            "principal": 800000,
+            "term_years": 30,
+            "interest_rate": 4.5,
+            "spread": -0.5
+        }
+    }
 
-    fixed = FixedUnlinked(principal=principal,
-                          term_years=term_years,
-                          interest_rate=5)
-
-    prime_rate_list = [5.5] * (term_years * 12)
-    prime = PrimeUnlinked(principal=principal,
-                          term_years=term_years,
-                          prime_rate_list = prime_rate_list,
-                          spread=-0.5)
-
-    cpi_list = [0] * (term_years * 12)
-    cpi = LinkedFixed(principal=principal,
-                      term_years=term_years,
-                      real_interest_rate = 5,
-                      cpi_list=cpi_list)
-
-    print(fixed.calc_amortization_schedule())
-    print(cpi.calc_amortization_schedule())
-    print(fixed.amortization_schedule == cpi.amortization_schedule)
+    multi_mortgage = mortgage_factory(mortgage_params)
+    for name, track in multi_mortgage.mortgage_tracks.items():
+        print(f"Amortization schedule for {name}:")
+        schedule = track.calc_amortization_schedule()
+        # Print only the first 3 periods for brevity
+        print(schedule[:3])
