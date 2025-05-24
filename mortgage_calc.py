@@ -23,7 +23,13 @@ class BaseMortgage(ABC):
         '''
         n = term_months
         mr = interest_rate / 12 / 100 # monthly interest rate
-        payment = principal * (mr * (1 + mr) ** n) / ((1 + mr) ** n - 1)
+
+        if mr == 0: # Handle zero interest rate
+            if n == 0: # Avoid division by zero if term is zero (though unlikely for valid loans)
+                return principal 
+            payment = principal / n
+        else:
+            payment = principal * (mr * (1 + mr) ** n) / ((1 + mr) ** n - 1)
         return payment
 
     def get_total_remaining_liabilities(self, current_period):
@@ -128,18 +134,28 @@ class LinkedFixed(BaseMortgage):
         super().__init__(principal, term_years)
         self.real_interest_rate = real_interest_rate  # Fixed real annual interest rate (percent)
         self.cpi_list = cpi_list  # List of CPI rise values for each month
-        self.real_balance = principal  # Track the balance in real terms
+        self.cpi_baseline = 100.0 # self.real_balance removed
 
     def _get_period_interest_rate(self, period):
         return self.real_interest_rate
 
-    def _update_balance(self, current_balance, principal_payment, period):
-        """
-        first pay to reduce principal a then apply cpi rise on the remaining principal
-        """
-        self.real_balance -= principal_payment
-        inflation_factor = self.cpi_list[period - 1] / 100
-        return self.real_balance * (1 + inflation_factor)
+    def _update_balance(self, current_nominal_balance_at_period_start, nominal_principal_payment_for_period, period):
+        balance_after_payment = current_nominal_balance_at_period_start - nominal_principal_payment_for_period
+        cpi_for_current_period_end = self.cpi_list[period - 1] # CPI at the end of the current period
+        
+        if period == 1:
+            if self.cpi_baseline == 0: # Avoid division by zero
+                inflation_ratio = 1.0
+            else:
+                inflation_ratio = cpi_for_current_period_end / self.cpi_baseline
+        else:
+            cpi_for_previous_period_end = self.cpi_list[period - 2]
+            if cpi_for_previous_period_end == 0: # Avoid division by zero
+                inflation_ratio = 1.0
+            else:
+                inflation_ratio = cpi_for_current_period_end / cpi_for_previous_period_end
+                
+        return balance_after_payment * inflation_ratio
 
 
 class AdjustableUnlinked(BaseMortgage):
@@ -162,36 +178,50 @@ class AdjustableUnlinked(BaseMortgage):
                 return self.reference_index[-1]
 
 
-class Adjustablelinked(BaseMortgage):
-    """5-Year Adjustable (Mishtana) mortgage: fixed for a period then adjustable."""
-    def __init__(self, principal, term_years, initial_interest_rate, reference_index, real_balance, cpi_list, fixed_period=5):
+class AdjustableLinked(BaseMortgage): 
+    """5-Year Adjustable CPI-Linked (Mishtana Tzmeda) mortgage."""
+    # real_balance parameter removed from __init__, self.cpi_baseline added
+    def __init__(self, principal, term_years, initial_interest_rate, reference_index, cpi_list, fixed_period=5):
         super().__init__(principal, term_years)
-        self.initial_interest_rate = initial_interest_rate  # Rate for the initial fixed period
-        self.fixed_period = fixed_period  # Fixed period length in years
-        self.reference_index = reference_index  # List of rates for each adjustment period after the fixed phase
-        self.real_balance = real_balance
+        self.initial_interest_rate = initial_interest_rate
+        self.fixed_period = fixed_period
+        self.reference_index = reference_index
         self.cpi_list = cpi_list
+        self.cpi_baseline = 100.0 # self.real_balance removed
 
     def _get_period_interest_rate(self, period):
-        if period <= self.fixed_period * 12:
+        # period is 1-indexed (month number)
+        current_year = (period - 1) // 12 # Determine current year in the loan
+        if current_year < self.fixed_period:
             return self.initial_interest_rate
         else:
-            adjustment_offset = period - (self.fixed_period * 12)
-            block = (adjustment_offset - 1) // (self.fixed_period * 12)
-            if block < len(self.reference_index):
-                return self.reference_index[block]
+            # Calculate which adjustment block we are in, after the initial fixed period
+            adjustment_year_offset = current_year - self.fixed_period
+            # Determine the index for reference_index based on 5-year blocks (as per original logic)
+            block_index = adjustment_year_offset // 5 
+            if block_index < len(self.reference_index):
+                return self.reference_index[block_index]
             else:
+                # Fallback to the last available rate if term exceeds defined index rates
                 return self.reference_index[-1]
 
-
-    def _update_balance(self, current_balance, principal_payment, period):
-        """
-        first pay to reduce principal a then apply cpi rise on the remaining principal
-        """
-        self.real_balance -= principal_payment
-        inflation_factor = self.cpi_list[period - 1] / 100
-        return self.real_balance * (1 + inflation_factor)
-
+    def _update_balance(self, current_nominal_balance_at_period_start, nominal_principal_payment_for_period, period):
+        balance_after_payment = current_nominal_balance_at_period_start - nominal_principal_payment_for_period
+        cpi_for_current_period_end = self.cpi_list[period - 1] # CPI at the end of the current period
+        
+        if period == 1:
+            if self.cpi_baseline == 0: # Avoid division by zero
+                inflation_ratio = 1.0
+            else:
+                inflation_ratio = cpi_for_current_period_end / self.cpi_baseline
+        else:
+            cpi_for_previous_period_end = self.cpi_list[period - 2]
+            if cpi_for_previous_period_end == 0: # Avoid division by zero
+                inflation_ratio = 1.0
+            else:
+                inflation_ratio = cpi_for_current_period_end / cpi_for_previous_period_end
+                
+        return balance_after_payment * inflation_ratio
 
 class MultiTrackMortgage:
     """
@@ -312,7 +342,7 @@ def mortgage_factory(mortgage_params):
         'prime': PrimeUnlinked,
         'linked': LinkedFixed,
         'adjustable': AdjustableUnlinked,
-        'adjustablelinked': Adjustablelinked
+        'adjustablelinked': AdjustableLinked # Corrected class name to match definition
     }
 
     mortgage_tracks = {}
@@ -332,6 +362,14 @@ def mortgage_factory(mortgage_params):
             interest = init_params["interest_rate"]
             init_params["prime_rate_list"] = [interest] * (term * 12)
             del init_params["interest_rate"]
+        
+        # Specifically handle 'fixed_period_years' vs 'fixed_period' for adjustable mortgages
+        if m_type == "adjustable" or m_type == "adjustablelinked":
+            if "fixed_period_years" in init_params:
+                init_params["fixed_period"] = init_params.pop("fixed_period_years")
+            if m_type == "adjustablelinked": # Ensure real_balance is removed for AdjustableLinked
+                init_params.pop('real_balance', None)
+
 
         try:
             track = mortgage_class(**init_params)
