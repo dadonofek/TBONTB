@@ -1,0 +1,18 @@
+# Existing dependencies
+numpy>=1.21.0
+plotly>=5.0.0
+humanize>=3.6.0
+openpyxl>=3.0.0
+matplotlib>=3.0.0
+yfinance>=0.1.70
+pandas>=1.0.0
+
+# FastAPI and web framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+python-multipart>=0.0.6
+
+# Additional utilities
+python-dotenv>=1.0.0
