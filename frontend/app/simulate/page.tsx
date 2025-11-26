@@ -341,7 +341,7 @@ export default function SimulatePage() {
                       type="number"
                       value={monthlyIncome}
                       onChange={(e) => setMonthlyIncome(Number(e.target.value))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
                     />
                     <p className="text-xs text-gray-500 mt-1">Income available after expenses</p>
                   </div>
@@ -353,7 +353,7 @@ export default function SimulatePage() {
                       type="number"
                       value={savings}
                       onChange={(e) => setSavings(Number(e.target.value))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
                     />
                     <p className="text-xs text-gray-500 mt-1">Initial capital available</p>
                   </div>
@@ -374,7 +374,7 @@ export default function SimulatePage() {
                         type="number"
                         value={apartmentPrice}
                         onChange={(e) => setApartmentPrice(Number(e.target.value))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
                       />
                     </div>
                     <div>
@@ -385,7 +385,7 @@ export default function SimulatePage() {
                         type="number"
                         value={downPayment}
                         onChange={(e) => setDownPayment(Number(e.target.value))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
                       />
                     </div>
                     <div>
@@ -413,7 +413,7 @@ export default function SimulatePage() {
                         step="0.1"
                         value={maintenanceCostRate}
                         onChange={(e) => setMaintenanceCostRate(Number(e.target.value))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
                       />
                     </div>
                     <div>
@@ -424,7 +424,7 @@ export default function SimulatePage() {
                         type="number"
                         value={fixedMaintenanceCost}
                         onChange={(e) => setFixedMaintenanceCost(Number(e.target.value))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
                       />
                     </div>
                   </div>
@@ -462,7 +462,7 @@ export default function SimulatePage() {
                             <select
                               value={track.type}
                               onChange={(e) => updateMortgageTrack(track.id, 'type', e.target.value as MortgageType)}
-                              className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
+                              className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900"
                             >
                               <option value="fixed">Fixed</option>
                               <option value="prime">Prime</option>
@@ -476,7 +476,7 @@ export default function SimulatePage() {
                               type="number"
                               value={track.principal}
                               onChange={(e) => updateMortgageTrack(track.id, 'principal', Number(e.target.value))}
-                              className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
+                              className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900"
                             />
                           </div>
                           <div>
@@ -485,7 +485,7 @@ export default function SimulatePage() {
                               type="number"
                               value={track.term_years}
                               onChange={(e) => updateMortgageTrack(track.id, 'term_years', Number(e.target.value))}
-                              className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
+                              className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900"
                             />
                           </div>
                           <div>
@@ -495,7 +495,7 @@ export default function SimulatePage() {
                               step="0.1"
                               value={track.interest_rate}
                               onChange={(e) => updateMortgageTrack(track.id, 'interest_rate', Number(e.target.value))}
-                              className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
+                              className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900"
                             />
                           </div>
                           {track.type === 'prime' && (
@@ -506,7 +506,7 @@ export default function SimulatePage() {
                                 step="0.1"
                                 value={track.spread}
                                 onChange={(e) => updateMortgageTrack(track.id, 'spread', Number(e.target.value))}
-                                className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
+                                className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm text-gray-900"
                               />
                             </div>
                           )}
@@ -526,7 +526,7 @@ export default function SimulatePage() {
                         step="0.001"
                         value={aptMu}
                         onChange={(e) => setAptMu(Number(e.target.value))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
                       />
                       <p className="text-xs text-gray-500 mt-1">Historical: ~5.4% for real estate</p>
                     </div>
@@ -539,7 +539,7 @@ export default function SimulatePage() {
                         step="0.001"
                         value={aptSigma}
                         onChange={(e) => setAptSigma(Number(e.target.value))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
                       />
                       <p className="text-xs text-gray-500 mt-1">Historical: ~5.2% for real estate</p>
                     </div>
@@ -562,7 +562,7 @@ export default function SimulatePage() {
                         step="0.1"
                         value={taxRate}
                         onChange={(e) => setTaxRate(Number(e.target.value))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
                       />
                     </div>
                     <div>
@@ -574,7 +574,7 @@ export default function SimulatePage() {
                         step="0.01"
                         value={transactionFee}
                         onChange={(e) => setTransactionFee(Number(e.target.value))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
                       />
                     </div>
                   </div>
@@ -589,7 +589,7 @@ export default function SimulatePage() {
                         step="0.01"
                         value={percentageManagementFee}
                         onChange={(e) => setPercentageManagementFee(Number(e.target.value))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
                       />
                     </div>
                     <div>
@@ -600,7 +600,7 @@ export default function SimulatePage() {
                         type="number"
                         value={ilsManagementFee}
                         onChange={(e) => setIlsManagementFee(Number(e.target.value))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
                       />
                     </div>
                   </div>
@@ -630,7 +630,7 @@ export default function SimulatePage() {
                         step="0.001"
                         value={stocksMu}
                         onChange={(e) => setStocksMu(Number(e.target.value))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
                       />
                       <p className="text-xs text-gray-500 mt-1">Historical S&P 500: ~7.8%</p>
                     </div>
@@ -643,7 +643,7 @@ export default function SimulatePage() {
                         step="0.001"
                         value={stocksSigma}
                         onChange={(e) => setStocksSigma(Number(e.target.value))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
                       />
                       <p className="text-xs text-gray-500 mt-1">Historical S&P 500: ~15%</p>
                     </div>
@@ -665,7 +665,7 @@ export default function SimulatePage() {
                       max="50"
                       value={simulationYears}
                       onChange={(e) => setSimulationYears(Number(e.target.value))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
                     />
                     <p className="text-xs text-gray-500 mt-1">1-50 years</p>
                   </div>
@@ -680,7 +680,7 @@ export default function SimulatePage() {
                       step="100"
                       value={nSimulations}
                       onChange={(e) => setNSimulations(Number(e.target.value))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
                     />
                     <p className="text-xs text-gray-500 mt-1">100-50,000 (higher = more accurate, slower)</p>
                   </div>
