@@ -148,13 +148,19 @@ export default function SimulatePage() {
   const buildBuyingInput = (): BuyingScenarioInput => {
     const mortgageParams: { [key: string]: MortgageTrackParams } = {};
     mortgageTracks.forEach(track => {
-      mortgageParams[track.name] = {
+      const params: MortgageTrackParams = {
         type: track.type,
         principal: track.principal,
         term_years: track.term_years,
         interest_rate: track.interest_rate,
-        spread: track.type === 'prime' ? track.spread : undefined,
       };
+
+      // Only add spread for prime mortgages
+      if (track.type === 'prime') {
+        params.spread = track.spread;
+      }
+
+      mortgageParams[track.name] = params;
     });
 
     return {
