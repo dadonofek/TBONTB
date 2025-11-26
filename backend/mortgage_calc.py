@@ -332,6 +332,10 @@ def mortgage_factory(mortgage_params):
             interest = init_params["interest_rate"]
             init_params["prime_rate_list"] = [interest] * (term * 12)
             del init_params["interest_rate"]
+        else:
+            # Remove 'spread' parameter for non-prime mortgages
+            if "spread" in init_params:
+                del init_params["spread"]
 
         try:
             track = mortgage_class(**init_params)
