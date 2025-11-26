@@ -10,8 +10,8 @@ Get all configs from the user via the frontend, run simulations, display results
 ## open bugs:
 
 - 1- light gry in frontend. fix all occurences.
-
 - 2- plot looks wired. what exactly are we plotting? what is the x axis?
+- 3- explain how to publish to a friend
 ---
 
 ## Phase 1: Setup & Infrastructure
