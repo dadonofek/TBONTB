@@ -521,41 +521,6 @@ export default function SimulatePage() {
                       </div>
                     ))}
                   </div>
-
-                  {/* Property Forecast Params - Hidden in Advanced Settings */}
-                  {showAdvancedSettings && (
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-700 mb-3">Property Forecast Parameters</h4>
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Expected Annual Appreciation (mu)
-                          </label>
-                          <input
-                            type="number"
-                            step="0.001"
-                            value={aptMu}
-                            onChange={(e) => setAptMu(Number(e.target.value))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">Historical: ~5.4% for real estate</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Volatility (sigma)
-                          </label>
-                          <input
-                            type="number"
-                            step="0.001"
-                            value={aptSigma}
-                            onChange={(e) => setAptSigma(Number(e.target.value))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">Historical: ~5.2% for real estate</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -630,41 +595,6 @@ export default function SimulatePage() {
                       </span>
                     </label>
                   </div>
-
-                  {/* Stock Market Forecast Params - Hidden in Advanced Settings */}
-                  {showAdvancedSettings && (
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-700 mb-3">Stock Market Forecast Parameters</h4>
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Expected Annual Return (mu)
-                          </label>
-                          <input
-                            type="number"
-                            step="0.001"
-                            value={stocksMu}
-                            onChange={(e) => setStocksMu(Number(e.target.value))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">Historical S&P 500: ~7.8%</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Volatility (sigma)
-                          </label>
-                          <input
-                            type="number"
-                            step="0.001"
-                            value={stocksSigma}
-                            onChange={(e) => setStocksSigma(Number(e.target.value))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">Historical S&P 500: ~15%</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -708,7 +638,7 @@ export default function SimulatePage() {
 
                   {/* Advanced Settings Content */}
                   {showAdvancedSettings && (
-                    <div className="pl-6 space-y-4 border-l-2 border-indigo-200">
+                    <div className="pl-6 space-y-6 border-l-2 border-indigo-200">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Number of Simulations
@@ -724,6 +654,76 @@ export default function SimulatePage() {
                         />
                         <p className="text-xs text-gray-500 mt-1">100-50,000 (higher = more accurate, slower)</p>
                       </div>
+
+                      {/* Property Forecast Parameters */}
+                      {(selectedScenario === 'buying' || selectedScenario === 'compare') && (
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-700 mb-3">Property Forecast Parameters</h4>
+                          <div className="grid md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Expected Annual Appreciation (mu)
+                              </label>
+                              <input
+                                type="number"
+                                step="0.001"
+                                value={aptMu}
+                                onChange={(e) => setAptMu(Number(e.target.value))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">Historical: ~5.4% for real estate</p>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Volatility (sigma)
+                              </label>
+                              <input
+                                type="number"
+                                step="0.001"
+                                value={aptSigma}
+                                onChange={(e) => setAptSigma(Number(e.target.value))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">Historical: ~5.2% for real estate</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Stock Market Forecast Parameters */}
+                      {(selectedScenario === 'investment' || selectedScenario === 'compare') && (
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-700 mb-3">Stock Market Forecast Parameters</h4>
+                          <div className="grid md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Expected Annual Return (mu)
+                              </label>
+                              <input
+                                type="number"
+                                step="0.001"
+                                value={stocksMu}
+                                onChange={(e) => setStocksMu(Number(e.target.value))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">Historical S&P 500: ~7.8%</p>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Volatility (sigma)
+                              </label>
+                              <input
+                                type="number"
+                                step="0.001"
+                                value={stocksSigma}
+                                onChange={(e) => setStocksSigma(Number(e.target.value))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">Historical S&P 500: ~15%</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
